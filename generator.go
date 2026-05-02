@@ -42,6 +42,7 @@ type templateData struct {
 	IncludeHSM        bool
 	IsYubiHSM         bool
 	IsPKCS11          bool
+	IsNetworkHSM      bool
 	HSMDisplayName    string
 	StorageNote       string
 
@@ -143,12 +144,27 @@ func Generate(cfg *Config) (string, error) {
 		importWrapKeyCmd = CmdImportWrapKey(cfg.CADisplay())
 	}
 
+	isNetworkHSM := isPKCS11 && cfg.PKCS11.NetworkHSM
+
+	// Build air-gap or network-restricted verification command
+	var airGapCmd []string
+	if isNetworkHSM {
+		airGapCmd = CmdVerifyNetworkRestricted(cfg.PKCS11.HSMAddress)
+	} else {
+		airGapCmd = CmdVerifyAirGap()
+	}
+
+	verifySoftwareCmd := CmdVerifySoftware(hsmType)
+	if isNetworkHSM {
+		verifySoftwareCmd = append(verifySoftwareCmd, "iptables --version", "dig -v 2>&1 | head -1")
+	}
+
 	d := &templateData{
 		Config:               cfg,
 		GeneratedAt:          time.Now().UTC().Format("2006-01-02 15:04:05"),
-		AirGapCmd:            CmdVerifyAirGap(),
+		AirGapCmd:            airGapCmd,
 		PrepWorkdirCmd:       CmdPrepareWorkdir(),
-		VerifySoftwareCmd:    CmdVerifySoftware(hsmType),
+		VerifySoftwareCmd:    verifySoftwareCmd,
 		VerifyYubiHSMCmd:     CmdVerifyYubiHSM(),
 		VerifyPKCS11Cmd:      verifyPKCS11Cmd,
 		EnrollCmds:           enrollCmds,
@@ -168,6 +184,7 @@ func Generate(cfg *Config) (string, error) {
 		IncludeHSM:           includeHSM,
 		IsYubiHSM:            isYubiHSM,
 		IsPKCS11:             isPKCS11,
+		IsNetworkHSM:         isNetworkHSM,
 		HSMDisplayName:       hsmType.DisplayName(),
 		StorageNote:          cfg.Options.ShareStorage.Note(cfg.Options.USBDrivesPerShare),
 		RecoveryCustodians:   recoveryCustodians,

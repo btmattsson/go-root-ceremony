@@ -109,6 +109,8 @@ func (h HSMType) DisplayName() string {
 type PKCS11Config struct {
 	ModulePath string `yaml:"module_path"`
 	TokenLabel string `yaml:"token_label"`
+	NetworkHSM bool   `yaml:"network_hsm,omitempty"`
+	HSMAddress string `yaml:"hsm_address,omitempty"`
 }
 
 // Person is a named ceremony participant.

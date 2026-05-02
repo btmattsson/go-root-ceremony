@@ -133,7 +133,8 @@ func runInit(args []string) {
 	header := "# go-root-ceremony configuration\n" +
 		"# ceremony_type: root-ca-wrap | root-ca-keygen | issuing-wrap | recovery\n" +
 		"# hsm_type:       yubihsm | pkcs11 | none\n" +
-		"# share_storage:  usb | print | both\n\n"
+		"# share_storage:  usb | print | both\n" +
+		"# pkcs11.network_hsm: true if HSM is network-attached (disables full air-gap)\n\n"
 
 	if err := os.WriteFile(*outputPath, append([]byte(header), data...), 0600); err != nil {
 		fatalf("writing config: %v", err)
@@ -205,6 +206,10 @@ func promptConfig() (Config, error) {
 		cfg.Options.HSMType = HSMPKCS11
 		cfg.PKCS11.ModulePath = prompt(r, "  PKCS#11 module path", "/usr/lib/softhsm/libsofthsm2.so")
 		cfg.PKCS11.TokenLabel = prompt(r, "  Token label", "RootCA")
+		cfg.PKCS11.NetworkHSM = promptBool(r, "  Network-connected HSM (not USB/local)", false)
+		if cfg.PKCS11.NetworkHSM {
+			cfg.PKCS11.HSMAddress = prompt(r, "  HSM network address (host:port)", "")
+		}
 	case 3:
 		cfg.Options.HSMType = HSMNone
 	}

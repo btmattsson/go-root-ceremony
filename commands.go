@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"net"
+)
 
 // commands.go builds the shell command blocks that appear in the ceremony script.
 // Each function returns a []string of lines suitable for rendering in a <pre> block.
@@ -15,6 +18,70 @@ func CmdVerifyAirGap() []string {
 		"",
 		`ping -c 1 8.8.8.8 || echo "CONFIRMED: No network (expected)"`,
 	}
+}
+
+// CmdVerifyNetworkRestricted returns commands for a network-connected HSM ceremony.
+// The workstation needs connectivity to the HSM but nothing else.
+func CmdVerifyNetworkRestricted(hsmAddress string) []string {
+	// Split host:port — iptables and ping need the host only
+	hsmHost := hsmAddress
+	hsmPort := ""
+	if hsmAddress != "" {
+		if h, p, err := net.SplitHostPort(hsmAddress); err == nil {
+			hsmHost = h
+			hsmPort = p
+		}
+	}
+
+	lines := []string{
+		"# ── Network-Connected HSM: Verify restricted connectivity ──",
+		"# The HSM requires network access. All other traffic must be blocked.",
+		"",
+		"# Show current firewall rules",
+		"iptables -L -n -v 2>/dev/null || nft list ruleset 2>/dev/null",
+		"",
+		"# Block all outbound traffic except HSM and loopback",
+		"iptables -P OUTPUT DROP",
+		"iptables -A OUTPUT -o lo -j ACCEPT",
+	}
+	if hsmHost != "" {
+		rule := fmt.Sprintf("iptables -A OUTPUT -d %s", hsmHost)
+		if hsmPort != "" {
+			rule += fmt.Sprintf(" -p tcp --dport %s", hsmPort)
+		}
+		rule += " -j ACCEPT"
+		lines = append(lines, rule)
+	} else {
+		lines = append(lines,
+			`iptables -A OUTPUT -d <HSM_IP_ADDRESS> -j ACCEPT  # ← fill in HSM address`,
+		)
+	}
+	lines = append(lines,
+		"iptables -P INPUT DROP",
+		"iptables -A INPUT -i lo -j ACCEPT",
+		"iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
+		"",
+		"# Verify: HSM is reachable",
+	)
+	if hsmHost != "" {
+		lines = append(lines,
+			fmt.Sprintf(`ping -c 1 %s && echo "HSM reachable ✓"`, hsmHost),
+		)
+	} else {
+		lines = append(lines,
+			`ping -c 1 <HSM_IP_ADDRESS> && echo "HSM reachable ✓"`,
+		)
+	}
+	lines = append(lines,
+		"",
+		"# Verify: public internet is NOT reachable",
+		`ping -c 1 -W 2 8.8.8.8 && echo "FAIL: Internet reachable!" || echo "CONFIRMED: Internet blocked ✓"`,
+		`ping -c 1 -W 2 1.1.1.1 && echo "FAIL: Internet reachable!" || echo "CONFIRMED: Internet blocked ✓"`,
+		"",
+		"# Verify: DNS is NOT available (prevents data exfiltration)",
+		`dig +short example.com && echo "FAIL: DNS resolving!" || echo "CONFIRMED: DNS blocked ✓"`,
+	)
+	return lines
 }
 
 // CmdPrepareWorkdir returns commands to create a RAM-backed working directory.
