@@ -148,6 +148,7 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
   <li>Video camera for ceremony recording — mandatory audit trail per EN 319 401 §7.6-13</li>
   {{if .IsYubiHSM}}<li>2 × YubiHSM 2 FIPS (serial numbers recorded below) for CA key storage</li>{{end}}
   {{if .IsPKCS11}}{{if .IsNetworkHSM}}<li>Network-connected PKCS#11 HSM — address: <code>{{.Config.PKCS11.HSMAddress}}</code>, module: <code>{{.Config.PKCS11.ModulePath}}</code></li>{{else}}<li>PKCS#11 HSM device (or SoftHSM 2 for testing) — module: <code>{{.Config.PKCS11.ModulePath}}</code></li>{{end}}{{end}}
+  {{if .IsExternalKeyGen}}<li>Hardware RNG device — <code>{{.RNGDevice}}</code> (dedicated entropy source for key generation)</li>{{end}}
   <li>Printed copy of this ceremony script (this document)</li>
   <li>Printed log sheets for recording ceremony artifacts</li>
   <li>Permanent markers for labelling USB drives</li>
@@ -164,6 +165,8 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
   {{if .IsYubiHSM}}<li>yubihsm-shell installed — from Yubico packages</li>{{end}}
   {{if .IsPKCS11}}<li>softhsm2-util and pkcs11-tool (OpenSC) installed</li>{{end}}
   {{if .IsNetworkHSM}}<li>iptables installed — for network firewall lockdown</li>{{end}}
+  {{if .IsExternalKeyGen}}<li>ent (entropy testing) installed — <code>apt install ent</code></li>
+  <li>rng-tools installed (provides rngtest) — <code>apt install rng-tools</code></li>{{end}}
   <li>All version strings recorded in ceremony log</li>
 </ul>
 
@@ -233,6 +236,37 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
 </div>
 {{end}}
 
+{{if .IsExternalKeyGen}}
+<div class="step">
+  <div class="step-num">Step 4</div>
+  <strong>Verify Hardware RNG Device</strong>
+  <p>The signing key will be generated externally using a dedicated hardware random number generator. The RNG device must be identified and tested before use.</p>
+  {{codeblock .VerifyRNGCmd}}
+  <ul class="checklist">
+    <li>RNG device <code>{{.RNGDevice}}</code> present and readable</li>
+    <li>Hardware RNG identity recorded in ceremony log</li>
+  </ul>
+</div>
+
+<div class="step">
+  <div class="step-num">Step 5</div>
+  <strong>RNG Entropy Quality Tests</strong>
+  <p>Before using the hardware RNG for key generation, statistical tests confirm the entropy source produces sufficient randomness. All tests must pass.</p>
+  {{codeblock .TestRNGCmd}}
+  <ul class="checklist">
+    <li>ent: entropy ≥ 7.99 bits/byte</li>
+    <li>ent: chi-square between 1% and 99%</li>
+    <li>rngtest: FIPS 140-2 tests — 0 failures</li>
+    <li>Compression ratio ≥ 0.99 (incompressible)</li>
+    <li>Two independent samples confirmed different</li>
+  </ul>
+  <div class="warn">
+    <strong>⚠ If any test fails, STOP the ceremony.</strong>
+    Do not proceed with key generation. Replace or investigate the RNG device before restarting.
+  </div>
+</div>
+{{end}}
+
 <!-- ── 5. YUBIKEY ENROLLMENT ── -->
 <h3>5 · Custodian YubiKey Enrollment</h3>
 <p>Each custodian's YubiKey is enrolled with a PIV key used as the age recipient for their SSS share. Complete this for all {{.Config.Shamir.Shares}} custodians before generating the secret.</p>
@@ -256,11 +290,43 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
 {{if not .IsRecovery}}
 <h3>6 · Secret Generation</h3>
 
-{{if .IsHSMKeygen}}
-<p>The Root CA private key is generated directly inside the YubiHSM 2 FIPS device. The wrap key is generated separately to enable encrypted key backup.</p>
+{{if .IsExternalKeyGen}}
+<p>The Root CA private key is generated <strong>outside</strong> the HSM using a dedicated hardware RNG (<code>{{.RNGDevice}}</code>), which was verified in Section 4. The key will be imported into the {{.HSMDisplayName}} after generation. A wrap key is also generated from the same RNG for encrypted key backup.</p>
 <div class="step">
   <div class="step-num">Step 6a</div>
-  <strong>Generate Root CA Key Inside YubiHSM</strong>
+  <strong>Generate Root CA Key from Hardware RNG</strong>
+  {{codeblock .GenerateHSMKeyCmd}}
+  <ul class="checklist">
+    <li>EC P-384 key generated from <code>{{.RNGDevice}}</code></li>
+    <li>Public key exported and recorded</li>
+    <li>Key validity confirmed by OpenSSL</li>
+  </ul>
+</div>
+<div class="step">
+  <div class="step-num">Step 6b</div>
+  <strong>Generate Wrap Key from Hardware RNG</strong>
+  {{codeblock .GenerateKeyCmd}}
+  <ul class="checklist">
+    <li>Key length confirmed: 64 hex characters (256 bits)</li>
+    <li>First 4 and last 4 hex chars confirmed by all witnesses</li>
+  </ul>
+</div>
+<div class="step">
+  <div class="step-num">Step 6c</div>
+  <strong>Import CA Key into {{.HSMDisplayName}}</strong>
+  <p>The externally generated private key is imported into the HSM. After import, the plaintext key is securely erased from the workstation.</p>
+  {{codeblock .ImportExternalKeyCmd}}
+  <ul class="checklist">
+    <li>Private key imported into HSM successfully</li>
+    <li>Key object visible in HSM object listing</li>
+    <li>Plaintext key securely erased from workstation RAM</li>
+  </ul>
+</div>
+{{else if .IsHSMKeygen}}
+<p>The Root CA private key is generated directly inside the {{.HSMDisplayName}} device. The wrap key is generated separately to enable encrypted key backup.</p>
+<div class="step">
+  <div class="step-num">Step 6a</div>
+  <strong>Generate Root CA Key Inside {{.HSMDisplayName}}</strong>
   {{codeblock .GenerateHSMKeyCmd}}
 </div>
 <div class="step">

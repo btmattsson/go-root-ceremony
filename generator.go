@@ -23,9 +23,12 @@ type templateData struct {
 	VerifySoftwareCmd    []string
 	VerifyYubiHSMCmd     []string
 	VerifyPKCS11Cmd      []string
+	VerifyRNGCmd         []string
+	TestRNGCmd           []string
 	EnrollCmds           [][]string
 	GenerateKeyCmd       []string
 	GenerateHSMKeyCmd    []string
+	ImportExternalKeyCmd []string
 	SSSSplitCmd          []string
 	EncryptCmds          [][]string
 	VerifyReconstructCmd []string
@@ -37,6 +40,7 @@ type templateData struct {
 	// Derived flags
 	IsRecovery        bool
 	IsHSMKeygen       bool
+	IsExternalKeyGen  bool
 	IncludeUSBDrives  bool
 	USBDrivesPerShare int
 	IncludeHSM        bool
@@ -44,6 +48,7 @@ type templateData struct {
 	IsPKCS11          bool
 	IsNetworkHSM      bool
 	HSMDisplayName    string
+	RNGDevice         string
 	StorageNote       string
 
 	// Recovery ceremony: indices of custodians who decrypt
@@ -123,8 +128,22 @@ func Generate(cfg *Config) (string, error) {
 	var genHSMKeyCmd []string
 	var verifyPKCS11Cmd []string
 	var importWrapKeyCmd []string
+	var importExternalKeyCmd []string
+	var verifyRNGCmd []string
+	var testRNGCmd []string
+
+	isExternalKeyGen := cfg.Options.ExternalKeyGen && isKeygen
+	rngDevice := cfg.Options.RNGDevice
 
 	switch {
+	case isExternalKeyGen && isPKCS11:
+		genKeyCmd = CmdGenerateKeyFromRNG(rngDevice)
+		genHSMKeyCmd = CmdGenerateCAKeyFromRNG(rngDevice, cfg.CADisplay())
+		importExternalKeyCmd = CmdImportExternalKeyToPKCS11(cfg.PKCS11.ModulePath, cfg.PKCS11.TokenLabel, cfg.CADisplay())
+	case isExternalKeyGen && isYubiHSM:
+		genKeyCmd = CmdGenerateKeyFromRNG(rngDevice)
+		genHSMKeyCmd = CmdGenerateCAKeyFromRNG(rngDevice, cfg.CADisplay())
+		importExternalKeyCmd = CmdImportExternalKeyToYubiHSM(cfg.CADisplay())
 	case isKeygen && isPKCS11:
 		genKeyCmd = CmdPKCS11GenerateWrapKey(cfg.PKCS11.ModulePath, cfg.PKCS11.TokenLabel, cfg.CADisplay())
 		genHSMKeyCmd = CmdPKCS11GenerateKey(cfg.PKCS11.ModulePath, cfg.PKCS11.TokenLabel, cfg.CADisplay())
@@ -135,6 +154,11 @@ func Generate(cfg *Config) (string, error) {
 		genKeyCmd = CmdGenerateWrapKey()
 	default:
 		genKeyCmd = CmdGenerateWrapKey()
+	}
+
+	if isExternalKeyGen {
+		verifyRNGCmd = CmdVerifyRNGDevice(rngDevice)
+		testRNGCmd = CmdTestRNGEntropy(rngDevice)
 	}
 
 	if isPKCS11 {
@@ -158,6 +182,9 @@ func Generate(cfg *Config) (string, error) {
 	if isNetworkHSM {
 		verifySoftwareCmd = append(verifySoftwareCmd, "iptables --version", "dig -v 2>&1 | head -1")
 	}
+	if isExternalKeyGen {
+		verifySoftwareCmd = append(verifySoftwareCmd, "ent --version 2>&1 | head -1 || which ent", "rngtest --version 2>&1 | head -1")
+	}
 
 	d := &templateData{
 		Config:               cfg,
@@ -167,9 +194,12 @@ func Generate(cfg *Config) (string, error) {
 		VerifySoftwareCmd:    verifySoftwareCmd,
 		VerifyYubiHSMCmd:     CmdVerifyYubiHSM(),
 		VerifyPKCS11Cmd:      verifyPKCS11Cmd,
+		VerifyRNGCmd:         verifyRNGCmd,
+		TestRNGCmd:           testRNGCmd,
 		EnrollCmds:           enrollCmds,
 		GenerateKeyCmd:       genKeyCmd,
 		GenerateHSMKeyCmd:    genHSMKeyCmd,
+		ImportExternalKeyCmd: importExternalKeyCmd,
 		SSSSplitCmd:          CmdSSSplit(n, m),
 		EncryptCmds:          encryptCmds,
 		VerifyReconstructCmd: CmdVerifyReconstruct(m),
@@ -179,6 +209,7 @@ func Generate(cfg *Config) (string, error) {
 		RecoveryCombineCmd:   CmdRecoveryCombine(m),
 		IsRecovery:           isRecovery,
 		IsHSMKeygen:          isKeygen,
+		IsExternalKeyGen:     isExternalKeyGen,
 		IncludeUSBDrives:     includeUSB,
 		USBDrivesPerShare:    cfg.Options.USBDrivesPerShare,
 		IncludeHSM:           includeHSM,
@@ -186,6 +217,7 @@ func Generate(cfg *Config) (string, error) {
 		IsPKCS11:             isPKCS11,
 		IsNetworkHSM:         isNetworkHSM,
 		HSMDisplayName:       hsmType.DisplayName(),
+		RNGDevice:            rngDevice,
 		StorageNote:          cfg.Options.ShareStorage.Note(cfg.Options.USBDrivesPerShare),
 		RecoveryCustodians:   recoveryCustodians,
 		CleanupSectionNum:    cleanupNum,

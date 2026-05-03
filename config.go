@@ -150,6 +150,8 @@ type Options struct {
 	HSMType             HSMType       `yaml:"hsm_type"`
 	ShareStorage        StorageMethod `yaml:"share_storage"`
 	USBDrivesPerShare   int           `yaml:"usb_drives_per_share"`
+	ExternalKeyGen      bool          `yaml:"external_keygen,omitempty"`
+	RNGDevice           string        `yaml:"rng_device,omitempty"`
 }
 
 // Config is the top-level ceremony configuration.
@@ -211,6 +213,10 @@ func (c *Config) Validate() error {
 	}
 	if c.Options.USBDrivesPerShare < 1 {
 		c.Options.USBDrivesPerShare = 2
+	}
+	// Default RNG device if external keygen is enabled
+	if c.Options.ExternalKeyGen && c.Options.RNGDevice == "" {
+		c.Options.RNGDevice = "/dev/hwrng"
 	}
 	// Default HSM type if empty
 	if c.Options.HSMType == "" {

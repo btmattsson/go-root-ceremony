@@ -134,7 +134,8 @@ func runInit(args []string) {
 		"# ceremony_type: root-ca-wrap | root-ca-keygen | issuing-wrap | recovery\n" +
 		"# hsm_type:       yubihsm | pkcs11 | none\n" +
 		"# share_storage:  usb | print | both\n" +
-		"# pkcs11.network_hsm: true if HSM is network-attached (disables full air-gap)\n\n"
+		"# pkcs11.network_hsm: true if HSM is network-attached (disables full air-gap)\n" +
+		"# external_keygen: true to generate key outside HSM using rng_device\n\n"
 
 	if err := os.WriteFile(*outputPath, append([]byte(header), data...), 0600); err != nil {
 		fatalf("writing config: %v", err)
@@ -212,6 +213,14 @@ func promptConfig() (Config, error) {
 		}
 	case 3:
 		cfg.Options.HSMType = HSMNone
+	}
+
+	// External key generation option (only for keygen ceremonies with an HSM)
+	if cfg.CeremonyType == CeremonyRootCAKeygen && cfg.Options.HSMType != HSMNone {
+		cfg.Options.ExternalKeyGen = promptBool(r, "Generate key outside HSM using dedicated RNG device", false)
+		if cfg.Options.ExternalKeyGen {
+			cfg.Options.RNGDevice = prompt(r, "  RNG device path", "/dev/hwrng")
+		}
 	}
 
 	cfg.Options.USBDrivesPerShare = promptN(r, "USB drives per share (for redundancy)", 2, 1, 5)
