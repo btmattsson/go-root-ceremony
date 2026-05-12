@@ -145,6 +145,7 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
   <li>Booted from verified read-only media (Tails OS recommended) or freshly installed offline OS</li>
   <li>{{.Config.Shamir.Shares}} × YubiKey 5 Series (one per custodian) — factory-reset or known-good state</li>
   {{if .IncludeUSBDrives}}<li>{{mul .Config.Shamir.Shares .USBDrivesPerShare}} × dedicated USB drives ({{.USBDrivesPerShare}} per custodian, labelled Custodian N — Copy 1/{{.USBDrivesPerShare}} through {{.USBDrivesPerShare}}/{{.USBDrivesPerShare}}, never previously used)</li>{{end}}
+  {{if not .IncludeHSM}}<li>2 × dedicated USB drive labelled Private key backup 1/2 and 2/2, never previously used</li>{{end}}
   {{if .IsGenerateCert}}<li>1 × dedicated USB drive labelled Public certificate, never previously used</li>{{end}}
   <li>Video camera for ceremony recording — mandatory audit trail per EN 319 401 §7.6-13</li>
   {{if .IsYubiHSM}}<li>2 × YubiHSM 2 FIPS (serial numbers recorded below) for CA key storage</li>{{end}}
@@ -154,6 +155,7 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
   <li>Printed log sheets for recording ceremony artifacts</li>
   <li>Permanent markers for labelling USB drives</li>
   {{if .IncludeUSBDrives}}<li>{{mul .Config.Shamir.Shares (add .USBDrivesPerShare  1)}} × tamper-evident bags (one per USB drive + one per Yubikey)</li>{{end}}
+  {{if not .IncludeHSM}}<li>2 × tamper-evident bag for USB drive with Private key backup</li>{{end}}
 </ul>
 
 <h4>3.3 Software (verify hashes before ceremony)</h4>
@@ -327,6 +329,7 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
 <div class="step">
   <div class="step-num">Step 6d</div>
 {{end}}
+{{if .IncludeHSM}}
   <strong>Import CA Key into {{.HSMDisplayName}}</strong>
   <p>The externally generated private key is imported into the HSM. After import, the plaintext key is securely erased from the workstation.</p>
   {{codeblock .ImportExternalKeyCmd}}
@@ -336,6 +339,33 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
     <li>Plaintext key securely erased from workstation RAM</li>
   </ul>
 </div>
+{{else}}
+  <strong>Export encrypted CA Key into USB</strong>
+  <p>The externally generated private key is exported into a USB stick. After export, the plaintext key is securely erased from the workstation.</p>
+  {{codeblock .ImportExternalKeyCmd}}
+  <ul class="checklist">
+    <li>Plaintext key securely erased from workstation RAM</li>
+  </ul>
+</div>
+<p>Copy <code>ca-key-backup.pem</code> to a dedicated USB drive. Eject the drive and place in a separate tamper-evident bag.</p>
+<table>
+  <thead><tr><th>Copy</th><th>USB Label</th><th>Storage Location</th><th>Copied ☑</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1/2</td>
+      <td class="mono">Private key backup 1/2</td>
+      <td>__________</td>
+      <td>☐</td>
+    </tr>
+    <tr>
+      <td>2/2</td>
+      <td class="mono">Private key backup 2/2</td>
+      <td>__________</td>
+      <td>☐</td>
+    </tr>
+  </tbody>
+</table>
+{{end}}
 {{if .IsGenerateCert}}
 <p>Copy <code>ca-cert.pem</code> to a dedicated USB drive. Eject the drive, we do not need to place this in a tamper-evident bag since it contains no sensitive information.</p>
 <table>

@@ -170,3 +170,17 @@ func CmdImportExternalKeyToPKCS11(modulePath, tokenLabel, caName string) []strin
 		`echo "Private key securely erased from workstation ✓"`,
 	}
 }
+
+// CmdExportExternalKeyToUSB returns commands to export an externally generated
+// key into a USB stick.
+func CmdExportExternalKeyToUSB() []string {
+	return []string{
+		"# Export externally generated key into USB",
+		`echo ${WRAP_KEY} | openssl ec -aes256 -in ca-key.pem \`,
+		`  -out ca-key-backup.pem -passout stdin`,
+		"",
+		"# Securely erase the plaintext private key",
+		"shred -u ca-key.pem ca-key.der",
+		`echo "Private key securely erased from workstation ✓"`,
+	}
+}

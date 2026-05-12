@@ -148,6 +148,10 @@ func Generate(cfg *Config) (string, error) {
 		genKeyCmd = CmdGenerateKeyFromRNG(rngDevice)
 		genHSMKeyCmd = CmdGenerateCAKeyFromRNG(rngDevice, cfg.CADisplay())
 		importExternalKeyCmd = CmdImportExternalKeyToYubiHSM(cfg.CADisplay())
+	case isExternalKeyGen:
+		genKeyCmd = CmdGenerateKeyFromRNG(rngDevice)
+		genHSMKeyCmd = CmdGenerateCAKeyFromRNG(rngDevice, cfg.CADisplay())
+		importExternalKeyCmd = CmdExportExternalKeyToUSB()
 	case isKeygen && isPKCS11:
 		genKeyCmd = CmdPKCS11GenerateWrapKey(cfg.PKCS11.ModulePath, cfg.PKCS11.TokenLabel, cfg.CADisplay())
 		genHSMKeyCmd = CmdPKCS11GenerateKey(cfg.PKCS11.ModulePath, cfg.PKCS11.TokenLabel, cfg.CADisplay())
