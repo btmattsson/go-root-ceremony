@@ -145,6 +145,7 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
   <li>Booted from verified read-only media (Tails OS recommended) or freshly installed offline OS</li>
   <li>{{.Config.Shamir.Shares}} × YubiKey 5 Series (one per custodian) — factory-reset or known-good state</li>
   {{if .IncludeUSBDrives}}<li>{{mul .Config.Shamir.Shares .USBDrivesPerShare}} × dedicated USB drives ({{.USBDrivesPerShare}} per custodian, labelled Custodian N — Copy 1/{{.USBDrivesPerShare}} through {{.USBDrivesPerShare}}/{{.USBDrivesPerShare}}, never previously used)</li>{{end}}
+  {{if .IsGenerateCert}}<li>1 × dedicated USB drive labelled Public certificate, never previously used</li>{{end}}
   <li>Video camera for ceremony recording — mandatory audit trail per EN 319 401 §7.6-13</li>
   {{if .IsYubiHSM}}<li>2 × YubiHSM 2 FIPS (serial numbers recorded below) for CA key storage</li>{{end}}
   {{if .IsPKCS11}}{{if .IsNetworkHSM}}<li>Network-connected PKCS#11 HSM — address: <code>{{.Config.PKCS11.HSMAddress}}</code>, module: <code>{{.Config.PKCS11.ModulePath}}</code></li>{{else}}<li>PKCS#11 HSM device (or SoftHSM 2 for testing) — module: <code>{{.Config.PKCS11.ModulePath}}</code></li>{{end}}{{end}}
@@ -313,6 +314,19 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
 </div>
 <div class="step">
   <div class="step-num">Step 6c</div>
+{{if .IsGenerateCert}}
+  <strong>Generate Selfsigned Certficate</strong>
+  <p>The externally generated private key is used to create a selfsigned certficate.</p>
+  {{codeblock .GenerateCertCmd}}
+  <ul class="checklist">
+    <li>openssl.cnf created</li>
+    <li>Certificate request created</li>
+    <li>Selfsigned certifcate created</li>
+  </ul>
+</div>
+<div class="step">
+  <div class="step-num">Step 6d</div>
+{{end}}
   <strong>Import CA Key into {{.HSMDisplayName}}</strong>
   <p>The externally generated private key is imported into the HSM. After import, the plaintext key is securely erased from the workstation.</p>
   {{codeblock .ImportExternalKeyCmd}}
@@ -322,6 +336,20 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
     <li>Plaintext key securely erased from workstation RAM</li>
   </ul>
 </div>
+{{if .IsGenerateCert}}
+<p>Copy <code>ca-cert.pem</code> to a dedicated USB drive. Eject the drive, we do not need to place this in a tamper-evident bag since it contains no sensitive information.</p>
+<table>
+  <thead><tr><th>Copy</th><th>USB Label</th><th>Storage Location</th><th>Copied ☑</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1/1</td>
+      <td class="mono">Public certificate</td>
+      <td>__________</td>
+      <td>☐</td>
+    </tr>
+  </tbody>
+</table>
+{{end}}
 {{else if .IsHSMKeygen}}
 <p>The Root CA private key is generated directly inside the {{.HSMDisplayName}} device. The wrap key is generated separately to enable encrypted key backup.</p>
 <div class="step">

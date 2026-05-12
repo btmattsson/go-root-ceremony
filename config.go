@@ -152,6 +152,9 @@ type Options struct {
 	USBDrivesPerShare   int           `yaml:"usb_drives_per_share"`
 	ExternalKeyGen      bool          `yaml:"external_keygen,omitempty"`
 	RNGDevice           string        `yaml:"rng_device,omitempty"`
+	GenerateCert        bool          `yaml:"generate_cert,omitempty"`
+	CertSubject         string        `yaml:"certificate_subject,omitempty"`
+	CertValidity        int           `yaml:"certificate_validity"`
 }
 
 // Config is the top-level ceremony configuration.

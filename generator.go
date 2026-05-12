@@ -24,6 +24,7 @@ type templateData struct {
 	VerifyYubiHSMCmd     []string
 	VerifyPKCS11Cmd      []string
 	VerifyRNGCmd         []string
+	GenerateCertCmd      []string
 	TestRNGCmd           []string
 	EnrollCmds           [][]string
 	GenerateKeyCmd       []string
@@ -41,6 +42,7 @@ type templateData struct {
 	IsRecovery        bool
 	IsHSMKeygen       bool
 	IsExternalKeyGen  bool
+	IsGenerateCert    bool
 	IncludeUSBDrives  bool
 	USBDrivesPerShare int
 	IncludeHSM        bool
@@ -130,9 +132,11 @@ func Generate(cfg *Config) (string, error) {
 	var importWrapKeyCmd []string
 	var importExternalKeyCmd []string
 	var verifyRNGCmd []string
+	var generateCertCmd []string
 	var testRNGCmd []string
 
 	isExternalKeyGen := cfg.Options.ExternalKeyGen && isKeygen
+	isGenerateCert := cfg.Options.GenerateCert && isExternalKeyGen
 	rngDevice := cfg.Options.RNGDevice
 
 	switch {
@@ -159,6 +163,12 @@ func Generate(cfg *Config) (string, error) {
 	if isExternalKeyGen {
 		verifyRNGCmd = CmdVerifyRNGDevice(rngDevice)
 		testRNGCmd = CmdTestRNGEntropy(rngDevice)
+	}
+
+	if isGenerateCert {
+		certSubject := cfg.Options.CertSubject
+		certValidity := cfg.Options.CertValidity
+		generateCertCmd = CmdGenerateCACertificate(certSubject, certValidity)
 	}
 
 	if isPKCS11 {
@@ -210,6 +220,8 @@ func Generate(cfg *Config) (string, error) {
 		IsRecovery:           isRecovery,
 		IsHSMKeygen:          isKeygen,
 		IsExternalKeyGen:     isExternalKeyGen,
+		IsGenerateCert:       isGenerateCert,
+		GenerateCertCmd:      generateCertCmd,
 		IncludeUSBDrives:     includeUSB,
 		USBDrivesPerShare:    cfg.Options.USBDrivesPerShare,
 		IncludeHSM:           includeHSM,

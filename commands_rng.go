@@ -100,6 +100,26 @@ func CmdGenerateCAKeyFromRNG(rngDevice, caName string) []string {
 	}
 }
 
+func CmdGenerateCACertificate(subject string, validity int) []string {
+	return []string{
+		"# Create openssl.cnf to be used while generating certificate request",
+		`cat > openssl.cnf << EOF`,
+		`[ v3_ca ]`,
+		`subjectKeyIdentifier=hash`,
+		`authorityKeyIdentifier=keyid:always,issuer`,
+		`basicConstraints = critical,CA:true`,
+		`EOF`,
+		"",
+		"# Generate Certificate request",
+		fmt.Sprintf(`openssl req -new -key ca-key.pem  -out ca-cert.req -subj "%s"`, subject),
+		"",
+		"# Generate selfsigned Certificate",
+		fmt.Sprintf(`openssl x509 -req -days %d -in ca-cert.req -signkey ca-key.pem -out ca-cert.pem \`, validity),
+		`   -extfile openssl.cnf -extensions v3_ca`,
+		"",
+	}
+}
+
 // CmdImportExternalKeyToYubiHSM returns commands to import an externally generated
 // key into a YubiHSM 2.
 func CmdImportExternalKeyToYubiHSM(caName string) []string {
