@@ -153,7 +153,7 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
   <li>Printed copy of this ceremony script (this document)</li>
   <li>Printed log sheets for recording ceremony artifacts</li>
   <li>Permanent markers for labelling USB drives</li>
-  {{if .IncludeUSBDrives}}<li>{{mul .Config.Shamir.Shares .USBDrivesPerShare}} × tamper-evident bags (one per USB drive)</li>{{end}}
+  {{if .IncludeUSBDrives}}<li>{{mul .Config.Shamir.Shares (add .USBDrivesPerShare  1)}} × tamper-evident bags (one per USB drive + one per Yubikey)</li>{{end}}
 </ul>
 
 <h4>3.3 Software (verify hashes before ceremony)</h4>
@@ -421,7 +421,7 @@ td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
 <h4>Encrypt Share {{add $i 1}} → {{$.Config.CustodianName $i}}</h4>
 {{codeblock (index $.EncryptCmds $i)}}
 {{if $.IncludeUSBDrives}}
-<p>Copy <code>custodian{{add $i 1}}.share.age</code> to each of {{$.USBDrivesPerShare}} dedicated USB drives for Custodian {{add $i 1}}. Eject each drive and place in a separate tamper-evident bag.</p>
+<p>Copy <code>custodian{{add $i 1}}.share.age</code> to each of {{$.USBDrivesPerShare}} dedicated USB drives for Custodian {{add $i 1}}. Eject each drive and place in a separate tamper-evident bag. Place the Yubikey in a separate bag.</p>
 <table>
   <thead><tr><th>Copy</th><th>USB Label</th><th>Storage Location</th><th>Copied ☑</th></tr></thead>
   <tbody>
