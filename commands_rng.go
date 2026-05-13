@@ -18,8 +18,6 @@ func CmdVerifyRNGDevice(rngDevice string) []string {
 		`cat /sys/class/misc/hw_random/rng_current 2>/dev/null || echo "(kernel hw_random not applicable)"`,
 		`cat /sys/class/misc/hw_random/rng_available 2>/dev/null || echo "(no kernel RNG info)"`,
 		"",
-		"# Check if rng-tools daemon is active (feeds hwrng → /dev/random)",
-		`systemctl is-active rng-tools 2>/dev/null || systemctl is-active rngd 2>/dev/null || echo "rng-tools not running (optional)"`,
 	}
 }
 
@@ -39,7 +37,7 @@ func CmdTestRNGEntropy(rngDevice string) []string {
 		"# Test 2: rngtest (from rng-tools) — FIPS 140-2 statistical tests",
 		"# Runs Monobit, Poker, Runs, and Long Runs tests",
 		"# Acceptable: 0 failures in 1000+ blocks",
-		fmt.Sprintf(`dd if=%s bs=2500 count=100 2>/dev/null | rngtest --blockcount=100`, rngDevice),
+		fmt.Sprintf(`dd if=%s bs=2500 count=101 2>/dev/null | rngtest --blockcount=100`, rngDevice),
 		"",
 		"# Test 3: Compression ratio — truly random data is incompressible",
 		`ORIG=$(wc -c < /tmp/ceremony/rng-sample.bin)`,
