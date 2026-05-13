@@ -154,7 +154,14 @@ type Options struct {
 	RNGDevice           string        `yaml:"rng_device,omitempty"`
 	GenerateCert        bool          `yaml:"generate_cert,omitempty"`
 	CertSubject         string        `yaml:"certificate_subject,omitempty"`
-	CertValidity        int           `yaml:"certificate_validity"`
+	CertValidity        int           `yaml:"certificate_validity,omitempty"`
+}
+
+func (s Options) Validate() error {
+	if s.GenerateCert && s.CertValidity < 45 {
+		return fmt.Errorf("certificate_validity should not be below 45, got %d", s.CertValidity)
+	}
+	return nil
 }
 
 // Config is the top-level ceremony configuration.
@@ -212,6 +219,9 @@ func LoadConfig(path string) (Config, error) {
 // Validate checks the config is consistent and complete enough to generate a script.
 func (c *Config) Validate() error {
 	if err := c.Shamir.Validate(); err != nil {
+		return err
+	}
+	if err := c.Options.Validate(); err != nil {
 		return err
 	}
 	if c.Options.USBDrivesPerShare < 1 {

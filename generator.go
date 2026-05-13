@@ -39,19 +39,20 @@ type templateData struct {
 	RecoveryCombineCmd   []string
 
 	// Derived flags
-	IsRecovery        bool
-	IsHSMKeygen       bool
-	IsExternalKeyGen  bool
-	IsGenerateCert    bool
-	IncludeUSBDrives  bool
-	USBDrivesPerShare int
-	IncludeHSM        bool
-	IsYubiHSM         bool
-	IsPKCS11          bool
-	IsNetworkHSM      bool
-	HSMDisplayName    string
-	RNGDevice         string
-	StorageNote       string
+	IsRecovery          bool
+	IsHSMKeygen         bool
+	IsExternalKeyGen    bool
+	IsExportExternalKey bool
+	IsGenerateCert      bool
+	IncludeUSBDrives    bool
+	USBDrivesPerShare   int
+	IncludeHSM          bool
+	IsYubiHSM           bool
+	IsPKCS11            bool
+	IsNetworkHSM        bool
+	HSMDisplayName      string
+	RNGDevice           string
+	StorageNote         string
 
 	// Recovery ceremony: indices of custodians who decrypt
 	RecoveryCustodians []int
@@ -136,6 +137,7 @@ func Generate(cfg *Config) (string, error) {
 	var testRNGCmd []string
 
 	isExternalKeyGen := cfg.Options.ExternalKeyGen && isKeygen
+	isExportExternalKey := isExternalKeyGen && !includeHSM
 	isGenerateCert := cfg.Options.GenerateCert && isExternalKeyGen
 	rngDevice := cfg.Options.RNGDevice
 
@@ -224,6 +226,7 @@ func Generate(cfg *Config) (string, error) {
 		IsRecovery:           isRecovery,
 		IsHSMKeygen:          isKeygen,
 		IsExternalKeyGen:     isExternalKeyGen,
+		IsExportExternalKey:  isExportExternalKey,
 		IsGenerateCert:       isGenerateCert,
 		GenerateCertCmd:      generateCertCmd,
 		IncludeUSBDrives:     includeUSB,

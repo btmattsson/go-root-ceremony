@@ -100,6 +100,8 @@ func CmdGenerateCAKeyFromRNG(rngDevice, caName string) []string {
 	}
 }
 
+// CmdGenerateCACertificate returns commands to generate a self-signed CA certificate.
+// It writes openssl.cnf, the certificate request ca-cert.req, and the certificate ca-cert.pem.
 func CmdGenerateCACertificate(subject string, validity int) []string {
 	return []string{
 		"# Create openssl.cnf to be used while generating certificate request",
