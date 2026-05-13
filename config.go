@@ -157,9 +157,14 @@ type Options struct {
 	CertValidity        int           `yaml:"certificate_validity,omitempty"`
 }
 
-func (s Options) Validate() error {
-	if s.GenerateCert && s.CertValidity < 45 {
-		return fmt.Errorf("certificate_validity should not be below 45, got %d", s.CertValidity)
+func (o Options) Validate() error {
+	if o.GenerateCert {
+		if o.CertValidity < 45 {
+			return fmt.Errorf("certificate_validity must be at least 45, got %d", o.CertValidity)
+		}
+		if o.CertSubject == "" {
+			return fmt.Errorf("certificate_subject is required when generate_cert is enabled")
+		}
 	}
 	return nil
 }

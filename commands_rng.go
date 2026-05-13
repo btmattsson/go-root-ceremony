@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // commands_rng.go builds shell command blocks for external RNG verification
 // and key generation outside an HSM using a dedicated hardware RNG device.
@@ -103,6 +106,9 @@ func CmdGenerateCAKeyFromRNG(rngDevice, caName string) []string {
 // CmdGenerateCACertificate returns commands to generate a self-signed CA certificate.
 // It writes openssl.cnf, the certificate request ca-cert.req, and the certificate ca-cert.pem.
 func CmdGenerateCACertificate(subject string, validity int) []string {
+	// Sanitise the subject string to prevent shell injection.
+	// Only allow characters valid in X.500 distinguished names.
+	safeSubject := sanitiseDNSubject(subject)
 	return []string{
 		"# Create openssl.cnf to be used while generating certificate request",
 		`cat > openssl.cnf << EOF`,
@@ -112,14 +118,27 @@ func CmdGenerateCACertificate(subject string, validity int) []string {
 		`basicConstraints = critical,CA:true`,
 		`EOF`,
 		"",
-		"# Generate Certificate request",
-		fmt.Sprintf(`openssl req -new -key ca-key.pem  -out ca-cert.req -subj "%s"`, subject),
+		"# Generate certificate request",
+		fmt.Sprintf(`openssl req -new -key ca-key.pem -out ca-cert.req -subj '%s'`, safeSubject),
 		"",
-		"# Generate selfsigned Certificate",
+		"# Generate self-signed certificate",
 		fmt.Sprintf(`openssl x509 -req -days %d -in ca-cert.req -signkey ca-key.pem -out ca-cert.pem \`, validity),
 		`   -extfile openssl.cnf -extensions v3_ca`,
 		"",
 	}
+}
+
+// sanitiseDNSubject strips characters that could break shell quoting.
+// Only alphanumerics, spaces, and common DN punctuation are allowed.
+func sanitiseDNSubject(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '/' || r == '=' || r == ' ' || r == ',' || r == '.' || r == '-' || r == '_' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // CmdImportExternalKeyToYubiHSM returns commands to import an externally generated
